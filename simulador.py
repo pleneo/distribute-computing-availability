@@ -2,14 +2,8 @@
 """
 Computação Distribuída - Trabalho 1 (Exercício 1.2)
 Prof. Nabor C. Mendonça - UNIFOR
-
-Este módulo implementa:
-1. O cálculo analítico da disponibilidade de serviço replicado em n servidores com mínimo k ativos.
-2. O simulador estocástico de Monte Carlo para validação experimental.
-3. Geração de tabelas comparativas (CSV) e gráficos 2D (PNG).
 """
 
-import os
 import math
 import argparse
 from pathlib import Path
@@ -18,42 +12,30 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-# ==============================================================================
-# 1. CÁLCULO ANALÍTICO (FÓRMULAS DEDUZIDAS NO EXERCÍCIO 1.1)
-# ==============================================================================
-
 def disponibilidade_analitica(n: int, k: int, p: float) -> float:
     """
-    Calcula a disponibilidade teórica A(n, k, p) de um cluster com n servidores,
-    onde no mínimo k servidores precisam estar disponíveis, cada um com prob p.
+    Calcula a disponibilidade A(n, k, p) de um cluster com n servidores,
+    onde no mínimo k servidores precisam estar disponíveis, cada um com probabilidade p.
 
     Fórmula Geral:
         A(n, k, p) = sum_{i=k}^n comb(n, i) * (p**i) * ((1 - p)**(n - i))
-
-    Casos Extremos Otimizados:
-        - k = 1 (Consulta): A(n, 1, p) = 1 - (1 - p)**n
-        - k = n (Atualização): A(n, n, p) = p**n
     """
+
     if not (0 < k <= n):
         raise ValueError(f"Parâmetros inválidos: requer 0 < k <= n (recebido n={n}, k={k})")
     if not (0.0 <= p <= 1.0):
         raise ValueError(f"Probabilidade p deve estar no intervalo [0, 1] (recebido p={p})")
 
-    # Limites triviais
     if p == 0.0:
         return 0.0
     if p == 1.0:
         return 1.0
 
-    # Otimização caso k = 1 (Consulta)
     if k == 1:
         return 1.0 - (1.0 - p) ** n
-
-    # Otimização caso k = n (Atualização)
     if k == n:
         return p ** n
 
-    # Caso geral: somatório da distribuição binomial acumulada
     prob_total = 0.0
     for i in range(k, n + 1):
         termo = math.comb(n, i) * (p ** i) * ((1.0 - p) ** (n - i))
@@ -62,25 +44,19 @@ def disponibilidade_analitica(n: int, k: int, p: float) -> float:
     return min(max(prob_total, 0.0), 1.0)
 
 
-# ==============================================================================
-# 2. SIMULADOR ESTOCÁSTICO (MONTE CARLO)
-# ==============================================================================
-
 def simulador_monte_carlo(n: int, k: int, p: float, rodadas: int = 50000, seed: int = None) -> float:
     """
-    Simula estocasticamente a disponibilidade de um serviço replicado.
-
     Para cada rodada:
-        1. Sorteia o estado de cada um dos n servidores (1 se rand <= p, senão 0).
+        1. Sorteia o estado de cada um dos n servidores.
         2. Conta o número de servidores disponíveis.
-        3. Verifica se a condição operacional foi atingida (ativos >= k).
+        3. Verifica se a condição foi atingida (ativos >= k).
 
-    Retorna a frequência experimental: (rodadas com sucesso) / rodadas.
+    Retorna  (rodadas com sucesso)/rodadas.
     """
+
     if rodadas <= 0:
         raise ValueError("O número de rodadas deve ser positivo.")
 
-    # Gerador de números aleatórios moderno do NumPy
     rng = np.random.default_rng(seed)
 
     # Matriz booleana de dimensões (rodadas, n): True se servidor ativo (rand <= p)
@@ -94,10 +70,6 @@ def simulador_monte_carlo(n: int, k: int, p: float, rodadas: int = 50000, seed: 
 
     return float(sucessos / rodadas)
 
-
-# ==============================================================================
-# 3. EXPERIMENTAÇÃO E TABULAÇÃO DE DADOS
-# ==============================================================================
 
 def executar_experimentos(
     lista_n: list[int] = [3, 5, 7],
@@ -142,10 +114,6 @@ def executar_experimentos(
     df = pd.DataFrame(registros)
     return df
 
-
-# ==============================================================================
-# 4. GERAÇÃO DE GRÁFICOS 2D
-# ==============================================================================
 
 def gerar_graficos(df: pd.DataFrame, output_dir: Path):
     """
@@ -258,11 +226,6 @@ def gerar_graficos(df: pd.DataFrame, output_dir: Path):
     fig.savefig(caminho_comp, bbox_inches="tight")
     plt.close(fig)
     print(f"  [+] Gráfico comparativo salvo: {caminho_comp}")
-
-
-# ==============================================================================
-# 5. EXECUÇÃO PRINCIPAL
-# ==============================================================================
 
 def main():
     parser = argparse.ArgumentParser(description="Simulador de Disponibilidade - Trabalho 1 (Comp. Distribuída)")
