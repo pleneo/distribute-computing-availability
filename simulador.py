@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Computação Distribuída - Trabalho 1 (Exercício 1.2)
-Prof. Nabor C. Mendonça - UNIFOR
+Computação Distribuída
+Professor Nabor
 """
 
 import math
@@ -12,7 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def disponibilidade_analitica(n: int, k: int, p: float) -> float:
+def calcular_disponibilidade(n: int, k: int, p: float) -> float:
     """
     Calcula a disponibilidade A(n, k, p) de um cluster com n servidores,
     onde no mínimo k servidores precisam estar disponíveis, cada um com probabilidade p.
@@ -60,6 +60,7 @@ def simulador_monte_carlo(n: int, k: int, p: float, rodadas: int = 50000, seed: 
     rng = np.random.default_rng(seed)
 
     # Matriz booleana de dimensões (rodadas, n): True se servidor ativo (rand <= p)
+
     servidores_ativos = rng.random(size=(rodadas, n)) <= p
 
     # Contagem de servidores ativos por rodada (soma na dimensão das colunas)
@@ -71,11 +72,11 @@ def simulador_monte_carlo(n: int, k: int, p: float, rodadas: int = 50000, seed: 
     return float(sucessos / rodadas)
 
 
-def executar_experimentos(
+def executar(
     lista_n: list[int] = [3, 5, 7],
     passos_p: int = 21,
     rodadas_mc: int = 50000,
-    seed: int = 42
+    seed: int = 67
 ) -> pd.DataFrame:
     """
     Executa a bateria completa de comparações para os cenários pedidos:
@@ -97,7 +98,7 @@ def executar_experimentos(
         for tipo_rotulo, k in casos_k.items():
             for p in valores_p:
                 p_float = float(p)
-                disp_analitica = disponibilidade_analitica(n, k, p_float)
+                disp_analitica = calcular_disponibilidade(n, k, p_float)
                 disp_simulada = simulador_monte_carlo(n, k, p_float, rodadas=rodadas_mc, seed=seed)
                 erro_abs = abs(disp_analitica - disp_simulada)
 
@@ -243,7 +244,7 @@ def main():
     print("=" * 70)
 
     # Executa bateria de testes para n = 3, n = 5 e n = 7
-    df_resultados = executar_experimentos(
+    df_resultados = executar(
         lista_n=[3, 5, 7],
         passos_p=args.passos,
         rodadas_mc=args.rodadas,
