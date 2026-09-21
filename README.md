@@ -173,12 +173,31 @@ Neste experimento, fixamos o tamanho do cluster em $N = 1000$ e variamos o requi
 
 ---
 
-### 4.4 Amostra dos Dados Tabulados
+### 4.4 Impacto da Quantidade de Rodadas na Simulação ($1, 5, 10, 100 \text{ e } 10.000$ rodadas)
+
+Este experimento avalia como o número de repetições estocásticas afeta a fidelidade da simulação, utilizando como base um cluster de $N = 100$ servidores com o requisito de metade das máquinas ativas ($k = 50$):
+
+![Convergência por Número de Rodadas](resultados/grafico_convergencia_rodadas.png)
+
+#### Funcionamento e Análise:
+* **Painel da Esquerda (Curvas de Disponibilidade):**
+  - **1 rodada (linha vermelha):** Como a simulação executa apenas um único teste por ponto, o resultado é puramente binário (ou dá $0$ ou dá $1$). A curva salta bruscamente entre os extremos e não representa uma probabilidade contínua, chegando a registrar erros superiores a $60\%$ nos pontos intermediários.
+  - **5 e 10 rodadas (linhas laranja e verde):** Com poucas repetições, os resultados ficam restritos a saltos quantizados (múltiplos de $20\%$ para 5 rodadas e múltiplos de $10\%$ para 10 rodadas). Também ocorrem oscilações e inversões por ruído estatístico: um ponto com maior confiabilidade pode pontuar menos do que um ponto anterior por puro acaso do sorteio.
+  - **100 rodadas (linha azul):** A curva já delineia com clareza o formato esperado, reproduzindo a transição em torno de $p = 0.5$. Contudo, ainda exibe pequenas ondulações e "dentes de serra".
+  - **10.000 rodadas (linha roxa):** A simulação atinge convergência plena, eliminando as flutuações e sobrepondo-se com exatidão à curva preta do modelo teórico.
+* **Painel da Direita (Convergência do Erro):**
+  - O gráfico em escala logarítmica evidencia a queda contínua tanto do **Erro Médio** (linha azul) quanto do **Erro Máximo** (linha vermelha tracejada).
+  - O erro cai em linha reta no gráfico logarítmico, comprovando de forma prática que rodadas adicionais reduzem a dispersão e aumentam progressivamente a certeza estatística da simulação.
+
+---
+
+### 4.5 Amostra dos Dados Tabulados
 
 Os dados completos de todas as simulações estão disponíveis em arquivos CSV no diretório `resultados/`:
 - `tabela_operacoes_n1000.csv`
 - `tabela_escala_n.csv`
 - `tabela_variando_k_n1000.csv`
+- `tabela_convergencia_rodadas.csv`
 
 #### Amostra: Operações em $N = 1000$
 
@@ -239,8 +258,10 @@ Os gráficos gerados e os dados em CSV são salvos automaticamente no diretório
     ├── grafico_operacoes_n1000.png     # N=1000 fixo: 1 Servidor (k=1), Metade (k=n/2) e Todos (k=n)
     ├── grafico_escala_n_tres_operacoes.png # Escala de N (1 a 10.000) para k=1, k=n/2 e k=n
     ├── grafico_n1000_variando_k.png    # N=1000 fixo com k variando de 1 a 1000
+    ├── grafico_convergencia_rodadas.png # Impacto do número de rodadas (1 a 10.000)
     ├── tabela_operacoes_n1000.csv
     ├── tabela_escala_n.csv
     ├── tabela_variando_k_n1000.csv
+    ├── tabela_convergencia_rodadas.csv
     └── tabela_comparativa.csv
 ```

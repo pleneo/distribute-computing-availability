@@ -202,6 +202,62 @@ def executar_variando_k(
     return pd.DataFrame(registros)
 
 
+def executar_experimento_rodadas(
+    n: int = 100,
+    k: int = 50,
+    lista_rodadas: list[int] = [1, 5, 10, 100, 10000],
+    passos_p: int = 41,
+    seed: int = 42
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Experimento 4: Avaliação do impacto do número de rodadas na simulação estocástica.
+    Compara o modelo teórico com rodadas pequenas (1, 5, 10), médias (100) e grandes (10.000).
+    """
+    valores_p = np.linspace(0.0, 1.0, passos_p)
+    print(f"[*] Executando Experimento 4: Impacto do número de rodadas (N={n}, k={k})...")
+
+    registros_curvas = []
+    for p in valores_p:
+        p_float = float(p)
+        disp_teo = calcular_disponibilidade(n, k, p_float)
+        linha = {"n": n, "k": k, "p": round(p_float, 5), "disponibilidade_teorica": round(disp_teo, 6)}
+        for r in lista_rodadas:
+            disp_sim = simulador_monte_carlo(n, k, p_float, rodadas=r, seed=seed)
+            linha[f"simulado_r{r}"] = round(disp_sim, 6)
+            linha[f"erro_r{r}"] = round(abs(disp_teo - disp_sim), 6)
+        registros_curvas.append(linha)
+
+    df_curvas = pd.DataFrame(registros_curvas)
+
+    # Varredura para traçar a curva de convergência do erro
+    r_sweep = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 5000, 10000, 30000]
+    teo_valores = np.array([calcular_disponibilidade(n, k, float(p)) for p in valores_p])
+
+    registros_erro = []
+    for r in r_sweep:
+        rng = np.random.default_rng(seed)
+        erros_r = []
+        for i, p in enumerate(valores_p):
+            p_float = float(p)
+            if p_float <= 0.0:
+                sim_val = 0.0
+            elif p_float >= 1.0:
+                sim_val = 1.0
+            else:
+                ativos = rng.binomial(n=n, p=p_float, size=r)
+                sim_val = np.count_nonzero(ativos >= k) / r
+            erros_r.append(abs(sim_val - teo_valores[i]))
+
+        registros_erro.append({
+            "rodadas": r,
+            "erro_medio": round(float(np.mean(erros_r)), 6),
+            "erro_maximo": round(float(np.max(erros_r)), 6)
+        })
+
+    df_erro = pd.DataFrame(registros_erro)
+    return df_curvas, df_erro
+
+
 # ==============================================================================
 # GERAÇÃO DE GRÁFICOS
 # ==============================================================================
@@ -354,6 +410,75 @@ def gerar_graficos(
     print(f"  [+] Gráfico salvo: {caminho3}")
 
 
+def gerar_grafico_rodadas(
+    df_curvas: pd.DataFrame,
+    df_erro: pd.DataFrame,
+    n: int,
+    k: int,
+    output_dir: Path
+):
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6), dpi=180)
+    fig.suptitle("Impacto do Número de Rodadas na Simulação de Monte Carlo", fontweight="bold", y=1.02)
+
+    # --------------------------------------------------------------------------
+    # Painel 1: Curvas de Disponibilidade para diferentes rodadas
+    # --------------------------------------------------------------------------
+    ax1.plot(
+        df_curvas["p"],
+        df_curvas["disponibilidade_teorica"],
+        label="Modelo Teórico",
+        color="#212529",
+        linewidth=2.6,
+        zorder=5
+    )
+
+    cores_r = {
+        1: ("#e03131", "o", 1.8, 4),
+        5: ("#f59f00", "s", 1.8, 4),
+        10: ("#20c997", "^", 1.8, 4),
+        100: ("#1971c2", None, 2.0, 0),
+        10000: ("#7950f2", None, 2.0, 0),
+    }
+
+    for col in df_curvas.columns:
+        if col.startswith("simulado_r"):
+            r = int(col.replace("simulado_r", ""))
+            cor, marker, lw, ms = cores_r.get(r, ("#495057", None, 1.5, 0))
+            label_r = f"{r:,} rodadas".replace(",", ".") if r > 1 else "1 rodada"
+            if marker:
+                ax1.plot(df_curvas["p"], df_curvas[col], label=label_r, color=cor, linewidth=lw, marker=marker, markersize=ms, alpha=0.85)
+            else:
+                ax1.plot(df_curvas["p"], df_curvas[col], label=label_r, color=cor, linewidth=lw, alpha=0.9)
+
+    ax1.set_title(f"Curvas de Disponibilidade vs. Rodadas (N = {n}, k = {k})", fontweight="bold", pad=10)
+    ax1.set_xlabel("Confiabilidade de cada servidor (p)", labelpad=7)
+    ax1.set_ylabel("Disponibilidade do Serviço", labelpad=7)
+    ax1.set_xlim(-0.02, 1.02)
+    ax1.set_ylim(-0.02, 1.05)
+    ax1.grid(True, linestyle="--", alpha=0.5)
+    ax1.legend(title="Configuração", loc="lower right", framealpha=0.92)
+
+    # --------------------------------------------------------------------------
+    # Painel 2: Convergência do Erro (Log-Log)
+    # --------------------------------------------------------------------------
+    ax2.plot(df_erro["rodadas"], df_erro["erro_medio"], "o-", color="#1971c2", linewidth=2.2, markersize=5.5, label="Erro Médio")
+    ax2.plot(df_erro["rodadas"], df_erro["erro_maximo"], "s--", color="#e03131", linewidth=2.0, markersize=5.5, label="Erro Máximo")
+
+    ax2.set_xscale("log")
+    ax2.set_yscale("log")
+    ax2.set_title("Convergência do Erro vs. Quantidade de Rodadas", fontweight="bold", pad=10)
+    ax2.set_xlabel("Número de Rodadas (escala logarítmica)", labelpad=7)
+    ax2.set_ylabel("Erro Absoluto (escala logarítmica)", labelpad=7)
+    ax2.grid(True, which="both", linestyle="--", alpha=0.45)
+    ax2.legend(title="Métrica de Erro", loc="upper right", framealpha=0.92)
+
+    caminho = output_dir / "grafico_convergencia_rodadas.png"
+    fig.tight_layout()
+    fig.savefig(caminho, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  [+] Gráfico salvo: {caminho}")
+
+
 # ==============================================================================
 # MAIN PIPELINE
 # ==============================================================================
@@ -384,7 +509,7 @@ def main():
     df_operacoes.to_csv(diretorio_resultados / "tabela_operacoes_n1000.csv", index=False)
     df_operacoes.to_csv(diretorio_resultados / "tabela_comparativa.csv", index=False)
 
-    # 2. Experimento: Escala de N variando (1, 5, 100, 1000, 10000) para Consulta, Maioria e Atualização
+    # 2. Experimento: Escala de N variando (1, 5, 100, 1000, 10000) para k=1, k=n/2 e k=n
     df_escala = executar_escala_tres_operacoes(
         lista_n=[1, 5, 100, 1000, 10000],
         passos_p=args.passos,
@@ -403,11 +528,22 @@ def main():
     )
     df_var_k.to_csv(diretorio_resultados / "tabela_variando_k_n1000.csv", index=False)
 
+    # 4. Experimento: Impacto do número de rodadas (N=100, k=50)
+    df_curvas_rodadas, df_erro_rodadas = executar_experimento_rodadas(
+        n=100,
+        k=50,
+        lista_rodadas=[1, 5, 10, 100, 10000],
+        passos_p=args.passos,
+        seed=42
+    )
+    df_curvas_rodadas.to_csv(diretorio_resultados / "tabela_convergencia_rodadas.csv", index=False)
+
     print("\n[OK] Tabelas CSV exportadas com sucesso.")
 
     # Gera os gráficos
     print("\nGerando gráficos limpos e padronizados...")
     gerar_graficos(df_operacoes, df_escala, df_var_k, diretorio_resultados)
+    gerar_grafico_rodadas(df_curvas_rodadas, df_erro_rodadas, 100, 50, diretorio_resultados)
 
     # Métricas consolidadas
     erros = np.concatenate([
